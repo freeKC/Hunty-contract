@@ -151,10 +151,11 @@ echo "RewardManager  : $REWARD_MANAGER_ID"
 echo "NftReward      : $NFT_REWARD_ID"
 echo "Wrote config/contracts.${ENVIRONMENT}.json"
 
-# Validate the updated config does not contain placeholders
+# Validate the config written above. Only this file is checked: the
+# committed configs of the other environments may still hold placeholders.
 echo ""
 echo "Validating config placeholders..."
-bash scripts/validate_placeholders.sh
+bash scripts/validate_placeholders.sh "config/contracts.${ENVIRONMENT}.json"
 
 # Verify every cross-contract link before returning success
 echo ""
