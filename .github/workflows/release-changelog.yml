@@ -35,18 +35,33 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Update CHANGELOG.md
+        env:
+          # The changelog is built from PR titles, which anyone opening a PR
+          # controls. Pass it (and the tag name) through the environment so
+          # that it is never expanded into the script itself.
+          CHANGELOG: ${{ steps.build_changelog.outputs.changelog }}
+          VERSION: ${{ github.ref_name }}
         run: |
-          VERSION="${{ github.ref_name }}"
           DATE=$(date +%Y-%m-%d)
-          ENTRY="## [${VERSION}] - ${DATE}\n${{ steps.build_changelog.outputs.changelog }}"
+          ENTRY_FILE=$(mktemp)
+          trap 'rm -f "$ENTRY_FILE"' EXIT
 
-          # Insert new entry after the [Unreleased] section
-          awk -v entry="$ENTRY" '
+          # Write the entry to a file instead of passing it with awk -v,
+          # which would interpret backslash escapes in the text.
+          printf '%s\n' "## [${VERSION}] - ${DATE}" "$CHANGELOG" > "$ENTRY_FILE"
+
+          # Insert new entry after the [Unreleased] section. Only the path
+          # of the temporary file is passed to awk, which copies the entry
+          # line by line with getline.
+          awk -v entry_file="$ENTRY_FILE" '
             /^## \[Unreleased\]/ {
               print
               getline
               print ""
-              print entry
+              while ((getline line < entry_file) > 0) {
+                print line
+              }
+              close(entry_file)
               next
             }
             { print }
